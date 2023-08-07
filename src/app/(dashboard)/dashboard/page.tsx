@@ -13,8 +13,11 @@ const page = async ({}) => {
   if (!session) notFound();
 
   const friends = await getFriendsByUserId(session.user.id);
-
-  const friendsWithLastMessage = await Promise.all(
+  interface UserWithMessage extends User {
+    lastMessage: Message;
+  }
+  const friendsWithLastMessage: UserWithMessage[] = [];
+  await Promise.all(
     friends.map(async friend => {
       const [lastMessageRaw] = (await fetchRedis(
         "zrange",
@@ -23,12 +26,14 @@ const page = async ({}) => {
         -1
       )) as string[];
 
-      const lastMessage = JSON.parse(lastMessageRaw) as Message;
+      if (lastMessageRaw) {
+        const lastMessage = JSON.parse(lastMessageRaw) as Message;
 
-      return {
-        ...friend,
-        lastMessage,
-      };
+        friendsWithLastMessage.push({
+          ...friend,
+          lastMessage,
+        });
+      }
     })
   );
 
